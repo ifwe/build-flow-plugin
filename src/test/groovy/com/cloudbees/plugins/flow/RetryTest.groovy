@@ -19,6 +19,7 @@ package com.cloudbees.plugins.flow
 
 import hudson.model.Result
 import static hudson.model.Result.SUCCESS
+import static hudson.model.Result.UNSTABLE
 import static hudson.model.Result.FAILURE
 import hudson.model.Job
 
@@ -101,6 +102,17 @@ class RetryTest extends DSLTestCase {
         assertRan(rescue, 3, SUCCESS)
         assert FAILURE == flow.result
         println flow.jobsGraph.edgeSet()
+    }
+
+    public void testNoRetryUnstable() {
+        Job job1 = createUnstableJob("job1")
+        def flow = run("""
+            retry(3, 'UNSTABLE') {
+                build("job1")
+            }
+        """)
+        assertRan(job1, 1, UNSTABLE)
+        assert UNSTABLE == flow.result
     }
 
 
