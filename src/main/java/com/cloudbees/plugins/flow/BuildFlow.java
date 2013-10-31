@@ -55,7 +55,7 @@ import org.codehaus.groovy.control.MultipleCompilationErrorsException;
 import groovy.lang.GroovyShell;
 
 /**
- * Defines the orchestration logic for a build flow as a succession of jobs to be executed and chained together
+ * Defines the orchestration logic for a build flow as a succession o jobs to be executed and chained together
  *
  * @author <a href="mailto:nicolas.deloof@cloudbees.com">Nicolas De loof</a>
  */

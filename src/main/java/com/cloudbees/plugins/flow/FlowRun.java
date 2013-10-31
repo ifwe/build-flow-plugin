@@ -34,6 +34,9 @@ import hudson.model.Run;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -134,10 +137,14 @@ public class FlowRun extends Build<BuildFlow, FlowRun> {
 
     @Override
     public void run() {
-        execute(new RunnerImpl(dsl));
+        run(createRunner());
     }
     
-    protected class RunnerImpl extends RunExecution {
+    protected Runner createRunner() {
+        return new RunnerImpl(dsl);
+    }
+    
+    protected class RunnerImpl extends AbstractRunner {
 
         private final String dsl;
 
@@ -145,21 +152,36 @@ public class FlowRun extends Build<BuildFlow, FlowRun> {
             this.dsl = dsl;
         }
 
-        @Override
-        public Result run(BuildListener listener) throws Exception, RunnerAbortedException {
-            setResult(SUCCESS);
-            new FlowDSL().executeFlowScript(FlowRun.this, dsl, listener);
+        protected Result doRun(BuildListener listener) throws Exception {
+            if(!preBuild(listener, project.getPublishersList()))
+                return FAILURE;
+
+            try {
+                setResult(SUCCESS);
+                new FlowDSL().executeFlowScript(FlowRun.this, dsl, listener);
+            } finally {
+                boolean failed=false;
+                for( int i=buildEnvironments.size()-1; i>=0; i-- ) {
+                    if (!buildEnvironments.get(i).tearDown(FlowRun.this,listener)) {
+                        failed=true;
+                    }
+                }
+                if (failed) return Result.FAILURE;
+            }
             return getState().getResult();
         }
 
         @Override
-        public void post(BuildListener listener) throws Exception {
-            FlowRun.this.startJob.buildCompleted();
+        public void post2(BuildListener listener) throws IOException, InterruptedException {
+            if(!performAllBuildSteps(listener, project.getPublishersList(), true))
+                setResult(FAILURE);
         }
 
         @Override
         public void cleanUp(BuildListener listener) throws Exception {
-
+            performAllBuildSteps(listener, project.getPublishersList(), false);
+            FlowRun.this.startJob.buildCompleted();
+            super.cleanUp(listener);
         }
     }
 
